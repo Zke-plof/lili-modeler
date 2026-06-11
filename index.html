@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lili Modeler</title>
+  </head>
+  <body>
+    <div id="app">
+      <div id="topbar">
+        <div class="menu-group">
+          <div style="position:relative">
+            <button id="btn-file" class="menu-btn">File</button>
+            <div id="file-menu" class="hidden dropdown-menu">
+              <button class="menu-item" id="file-new">New</button>
+              <button class="menu-item" id="file-import">Import...</button>
+              <div class="menu-separator"></div>
+              <button class="menu-item" id="file-export-obj">Export OBJ</button>
+              <button class="menu-item" id="file-export-stl">Export STL</button>
+              <button class="menu-item" id="file-export-gltf">Export GLTF</button>
+            </div>
+          </div>
+          <button id="btn-edit" class="menu-btn">Edit</button>
+          <button id="btn-view" class="menu-btn">View</button>
+          <div style="position:relative">
+            <button id="btn-add" class="menu-btn">Add</button>
+            <div id="add-menu" class="hidden dropdown-menu">
+              <button class="add-item" data-type="cube">Cube</button>
+              <button class="add-item" data-type="sphere">Sphere</button>
+              <button class="add-item" data-type="cylinder">Cylinder</button>
+              <button class="add-item" data-type="torus">Torus</button>
+              <button class="add-item" data-type="plane">Plane</button>
+              <button class="add-item" data-type="cone">Cone</button>
+              <button class="add-item" data-type="monkey">Monkey</button>
+              <button class="add-item" data-type="torusknot">Torus Knot</button>
+              <button class="add-item" data-type="dodecahedron">Dodecahedron</button>
+              <button class="add-item" data-type="icosahedron">Icosahedron</button>
+              <button class="add-item" data-type="octahedron">Octahedron</button>
+              <button class="add-item" data-type="tetrahedron">Tetrahedron</button>
+            </div>
+          </div>
+          <button id="btn-object" class="menu-btn">Object</button>
+          <button id="btn-modifiers" class="menu-btn">Modifiers</button>
+        </div>
+        <div class="mode-group">
+          <button id="btn-mode-object" class="mode-btn active" data-mode="object">Object</button>
+          <button id="btn-mode-edit" class="mode-btn" data-mode="edit">Edit</button>
+          <button id="btn-mode-sculpt" class="mode-btn" data-mode="sculpt">Sculpt</button>
+          <button id="btn-mode-weight" class="mode-btn" data-mode="weight_paint">Weight</button>
+          <button id="btn-mode-vertex" class="mode-btn" data-mode="vertex_paint">Vertex</button>
+        </div>
+        <div class="status-group">
+          <span id="status-text">Ready</span>
+          <span id="fps-counter">0 FPS</span>
+        </div>
+      </div>
+
+      <div id="main-layout">
+        <div id="toolbar">
+          <button class="tool-btn" id="tool-cursor" title="Cursor (Q)">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="currentColor"/></svg>
+          </button>
+          <button class="tool-btn" id="tool-move" title="Move (G)">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 2l3 3h-2v5h5v-2l3 3-3 3v-2h-5v5h2l-3 3-3-3h2v-5H5v2L2 12l3-3v2h5V7H9l3-3z" fill="currentColor"/></svg>
+          </button>
+          <button class="tool-btn" id="tool-rotate" title="Rotate (R)">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/></svg>
+          </button>
+          <button class="tool-btn" id="tool-scale" title="Scale (S)">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z" fill="currentColor"/></svg>
+          </button>
+          <div class="separator"></div>
+          <button class="tool-btn" id="tool-extrude" title="Extrude (E)">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3h-6zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3v6zm6 12l-2.3-2.3 2.89-2.87-1.42-1.42L5.3 17.3 3 15v6h6zm12-6l-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6v-6z" fill="currentColor"/></svg>
+          </button>
+          <button class="tool-btn" id="tool-inset" title="Inset (I)">
+            <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="7" y="7" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+          </button>
+          <button class="tool-btn" id="tool-bevel" title="Bevel (Ctrl+B)">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 3h18v2H5v14h14v2H3V3z" fill="currentColor"/><path d="M17 3h4v4h-2V5h-2V3z" fill="currentColor"/></svg>
+          </button>
+          <button class="tool-btn" id="tool-loopcut" title="Loop Cut (Ctrl+R)">
+            <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" stroke-width="2"/></svg>
+          </button>
+          <div class="separator"></div>
+          <button class="tool-btn" id="tool-knife" title="Knife (K)">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M18.5 2.5L2 19l3.5 3.5L22 6l-3.5-3.5zM7.5 17.5l-3-3 9-9 3 3-9 9z" fill="currentColor"/></svg>
+          </button>
+          <button class="tool-btn" id="tool-measure" title="Measure (M)">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M2 12h20M12 2v20M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+          </button>
+        </div>
+
+        <div id="viewport-container">
+          <canvas id="viewport"></canvas>
+          <div id="viewport-overlay">
+            <canvas id="orientation-gizmo" width="130" height="130"></canvas>
+          </div>
+          <div id="viewport-overlay-bar">
+            <div class="shading-group">
+              <button class="shading-btn active" data-shading="solid" title="Solid (Z)">Solid</button>
+              <button class="shading-btn" data-shading="wireframe" title="Wireframe">Wire</button>
+              <button class="shading-btn" data-shading="material" title="Material Preview">Mat</button>
+              <button class="shading-btn" data-shading="rendered" title="Rendered">Rend</button>
+            </div>
+            <div class="separator-vertical"></div>
+            <button class="overlay-toggle-btn" id="overlay-wireframe" title="Wireframe Overlay">W</button>
+            <button class="overlay-toggle-btn" id="overlay-normals" title="Normals">N</button>
+            <button class="overlay-toggle-btn" id="overlay-face-orientation" title="Face Orientation">FO</button>
+            <button class="overlay-toggle-btn" id="overlay-statistics" title="Statistics">ST</button>
+          </div>
+          <div id="viewport-info">
+            <span id="selection-info">No selection</span>
+          </div>
+          <div id="sculpt-panel" class="hidden">
+            <div class="prop-header">Sculpt Brush</div>
+            <div class="brush-grid">
+              <button class="sculpt-brush-btn active" data-brush="draw">Draw</button>
+              <button class="sculpt-brush-btn" data-brush="smooth">Smooth</button>
+              <button class="sculpt-brush-btn" data-brush="clay">Clay</button>
+              <button class="sculpt-brush-btn" data-brush="inflate">Inflate</button>
+              <button class="sculpt-brush-btn" data-brush="grab">Grab</button>
+              <button class="sculpt-brush-btn" data-brush="pinch">Pinch</button>
+              <button class="sculpt-brush-btn" data-brush="flatten">Flatten</button>
+              <button class="sculpt-brush-btn" data-brush="scrape">Scrape</button>
+              <button class="sculpt-brush-btn" data-brush="fill">Fill</button>
+              <button class="sculpt-brush-btn" data-brush="crease">Crease</button>
+            </div>
+            <div class="prop-row">
+              <label>Size</label>
+              <input type="range" id="sculpt-size" min="0.05" max="5" step="0.05" value="0.5" />
+              <span id="sculpt-size-val">0.5</span>
+            </div>
+            <div class="prop-row">
+              <label>Strength</label>
+              <input type="range" id="sculpt-strength" min="0.01" max="2" step="0.01" value="0.5" />
+              <span id="sculpt-strength-val">0.5</span>
+            </div>
+          </div>
+          <div id="context-menu" class="hidden">
+            <button class="context-item" id="ctx-duplicate">Duplicate</button>
+            <button class="context-item" id="ctx-delete">Delete</button>
+            <div class="context-separator"></div>
+            <button class="context-item" id="ctx-shade-smooth">Shade Smooth</button>
+            <button class="context-item" id="ctx-shade-flat">Shade Flat</button>
+            <div class="context-separator"></div>
+            <button class="context-item" id="ctx-set-origin">Set Origin</button>
+            <button class="context-item" id="ctx-convert-to">Convert To</button>
+            <div class="context-separator"></div>
+            <button class="context-item" id="ctx-join">Join</button>
+            <button class="context-item" id="ctx-separate">Separate</button>
+            <button class="context-item" id="ctx-mirror">Mirror</button>
+          </div>
+        </div>
+
+        <div id="right-panel">
+          <div id="n-panel-tabs">
+            <button class="n-tab active" data-tab="item">Item</button>
+            <button class="n-tab" data-tab="tool">Tool</button>
+            <button class="n-tab" data-tab="view">View</button>
+          </div>
+
+          <div id="outliner-panel" class="panel">
+            <div class="panel-header">
+              <span>Outliner</span>
+              <button class="panel-collapse-btn">−</button>
+            </div>
+            <div class="panel-body">
+              <input type="text" id="outliner-search" placeholder="Search..." style="width:100%; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:4px 8px; font-size:11px; margin-bottom:6px;" />
+              <div id="outliner-list"></div>
+              <button id="outliner-add-collection" class="small-btn" style="width:100%; margin-top:6px;">+ Collection</button>
+            </div>
+          </div>
+
+          <div id="properties-panel" class="panel">
+            <div class="panel-header">
+              <span>Properties</span>
+              <button class="panel-collapse-btn">−</button>
+            </div>
+            <div class="panel-body" id="properties-content">
+              <div class="prop-section">
+                <div class="prop-header">Transform</div>
+                <div class="prop-row">
+                  <label>Position</label>
+                  <div class="vec3-input">
+                    <input type="number" id="pos-x" step="0.1" value="0" />
+                    <input type="number" id="pos-y" step="0.1" value="0" />
+                    <input type="number" id="pos-z" step="0.1" value="0" />
+                  </div>
+                </div>
+                <div class="prop-row">
+                  <label>Rotation</label>
+                  <div class="vec3-input">
+                    <input type="number" id="rot-x" step="1" value="0" />
+                    <input type="number" id="rot-y" step="1" value="0" />
+                    <input type="number" id="rot-z" step="1" value="0" />
+                  </div>
+                </div>
+                <div class="prop-row">
+                  <label>Scale</label>
+                  <div class="vec3-input">
+                    <input type="number" id="scale-x" step="0.1" value="1" />
+                    <input type="number" id="scale-y" step="0.1" value="1" />
+                    <input type="number" id="scale-z" step="0.1" value="1" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="prop-section">
+                <div class="prop-header">Mesh Info</div>
+                <div class="prop-row">
+                  <label>Vertices</label>
+                  <span id="info-verts">0</span>
+                </div>
+                <div class="prop-row">
+                  <label>Edges</label>
+                  <span id="info-edges">0</span>
+                </div>
+                <div class="prop-row">
+                  <label>Faces</label>
+                  <span id="info-faces">0</span>
+                </div>
+                <div class="prop-row">
+                  <label>Volume</label>
+                  <span id="info-volume">0.000</span>
+                </div>
+                <div class="prop-row">
+                  <label>Surface Area</label>
+                  <span id="info-area">0.000</span>
+                </div>
+              </div>
+
+              <div class="prop-section" id="constraints-section">
+                <div class="prop-header">Constraints</div>
+                <div id="constraints-list"></div>
+                <button id="btn-add-constraint" class="small-btn">+ Add Constraint</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="modifiers-panel" class="panel">
+            <div class="panel-header">
+              <span>Modifiers</span>
+              <button class="panel-collapse-btn">−</button>
+            </div>
+            <div class="panel-body" id="modifiers-content">
+              <button id="btn-array" class="tool-action-btn">Array</button>
+              <button id="btn-mirror" class="tool-action-btn">Mirror</button>
+              <button id="btn-subsurf" class="tool-action-btn">Subdivision Surface</button>
+              <button id="btn-solidify" class="tool-action-btn">Solidify</button>
+              <button id="btn-bevel-mod" class="tool-action-btn">Bevel</button>
+              <div class="panel-group" style="margin-bottom:4px; padding:6px; border:1px solid var(--border); border-radius:4px;">
+                <div class="prop-header" style="margin-bottom:4px;">Boolean</div>
+                <div class="prop-row">
+                  <select id="bool-op" style="flex:1; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:3px 6px; font-size:11px;">
+                    <option value="union">Union</option>
+                    <option value="difference">Difference</option>
+                    <option value="intersect">Intersect</option>
+                  </select>
+                </div>
+                <button id="btn-boolean-apply" class="tool-action-btn" style="margin-top:4px;">Apply Boolean</button>
+              </div>
+              <button id="btn-weld" class="tool-action-btn">Weld</button>
+              <button id="btn-decimate" class="tool-action-btn">Decimate</button>
+              <button id="btn-triangulate" class="tool-action-btn">Triangulate</button>
+            </div>
+          </div>
+
+          <div id="snap-panel" class="panel">
+            <div class="panel-header">
+              <span>Snap</span>
+              <button class="panel-collapse-btn">−</button>
+            </div>
+            <div class="panel-body">
+              <div class="toggle-row">
+                <label>Snap</label>
+                <div id="snap-toggle" class="toggle-switch"></div>
+              </div>
+              <div class="snap-select" id="snap-type-select">
+                <button class="snap-btn active" data-snap="increment">Increment</button>
+                <button class="snap-btn" data-snap="vertex">Vertex</button>
+                <button class="snap-btn" data-snap="edge">Edge</button>
+                <button class="snap-btn" data-snap="face">Face</button>
+                <button class="snap-btn" data-snap="grid">Grid</button>
+              </div>
+              <div class="prop-row">
+                <label>Snap Size</label>
+                <input type="number" id="snap-size" value="0.1" step="0.01" min="0.001" style="width:60px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:3px 6px; font-size:11px;" />
+              </div>
+              <div class="toggle-row">
+                <label>Proportional</label>
+                <div id="prop-toggle" class="toggle-switch"></div>
+              </div>
+              <div class="prop-row">
+                <label>Radius</label>
+                <input type="number" id="prop-radius" value="1.0" step="0.1" min="0.1" style="width:60px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:3px 6px; font-size:11px;" />
+              </div>
+              <div class="prop-row">
+                <label>Falloff</label>
+                <select id="prop-falloff" style="flex:1; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:3px 6px; font-size:11px;">
+                  <option value="smooth">Smooth</option>
+                  <option value="sphere">Sphere</option>
+                  <option value="root">Root</option>
+                  <option value="sharp">Sharp</option>
+                  <option value="linear">Linear</option>
+                  <option value="constant">Constant</option>
+                  <option value="random">Random</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div id="materials-panel" class="panel">
+            <div class="panel-header">
+              <span>Material</span>
+              <button class="panel-collapse-btn">−</button>
+            </div>
+            <div class="panel-body">
+              <div class="prop-row">
+                <label>Preset</label>
+                <select id="mat-preset" style="flex:1; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:3px 6px; font-size:11px;">
+                  <option value="default">Default</option>
+                  <option value="metal">Metal</option>
+                  <option value="plastic">Plastic</option>
+                  <option value="glass">Glass</option>
+                  <option value="rubber">Rubber</option>
+                  <option value="emissive">Emissive</option>
+                  <option value="wood">Wood</option>
+                  <option value="marble">Marble</option>
+                  <option value="stone">Stone</option>
+                  <option value="ceramic">Ceramic</option>
+                  <option value="gold">Gold</option>
+                  <option value="copper">Copper</option>
+                  <option value="aluminium">Aluminium</option>
+                  <option value="carbon">Carbon Fiber</option>
+                </select>
+              </div>
+              <div class="prop-row">
+                <label>Color</label>
+                <input type="color" id="mat-color" value="#888899" style="width:40px; height:24px; border:none; cursor:pointer; background:none;" />
+              </div>
+              <div class="prop-row">
+                <label>Metallic</label>
+                <input type="range" id="mat-metallic" min="0" max="1" step="0.01" value="0.1" style="flex:1;" />
+              </div>
+              <div class="prop-row">
+                <label>Roughness</label>
+                <input type="range" id="mat-roughness" min="0" max="1" step="0.01" value="0.6" style="flex:1;" />
+              </div>
+              <div class="prop-row">
+                <label>Opacity</label>
+                <input type="range" id="mat-opacity" min="0" max="1" step="0.01" value="1.0" style="flex:1;" />
+              </div>
+            </div>
+          </div>
+
+          <div id="physics-panel" class="panel">
+            <div class="panel-header">
+              <span>Physics</span>
+              <button class="panel-collapse-btn">−</button>
+            </div>
+            <div class="panel-body">
+              <div class="toggle-row">
+                <label>Rigid Body</label>
+                <div id="physics-toggle" class="toggle-switch"></div>
+              </div>
+              <div class="physics-section">
+                <div class="prop-row">
+                  <label>Type</label>
+                  <select id="physics-type" style="flex:1; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:3px 6px; font-size:11px;">
+                    <option value="active">Active</option>
+                    <option value="passive">Passive</option>
+                  </select>
+                </div>
+                <div class="prop-row">
+                  <label>Mass</label>
+                  <input type="number" id="physics-mass" value="1.0" step="0.1" min="0.01" style="width:60px; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:3px 6px; font-size:11px;" />
+                </div>
+                <div class="prop-row">
+                  <label>Friction</label>
+                  <input type="range" id="physics-friction" min="0" max="1" step="0.01" value="0.5" style="flex:1;" />
+                </div>
+                <div class="prop-row">
+                  <label>Bounciness</label>
+                  <input type="range" id="physics-bounce" min="0" max="1" step="0.01" value="0.3" style="flex:1;" />
+                </div>
+                <div class="prop-row">
+                  <label>Shape</label>
+                  <select id="physics-shape" style="flex:1; background:var(--bg-input); border:1px solid var(--border); border-radius:4px; color:var(--text); padding:3px 6px; font-size:11px;">
+                    <option value="box">Box</option>
+                    <option value="sphere">Sphere</option>
+                    <option value="capsule">Capsule</option>
+                    <option value="convex">Convex Hull</option>
+                    <option value="mesh">Mesh</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="timeline-panel">
+        <div id="timeline-controls">
+          <button class="timeline-btn" id="timeline-rewind" title="Start">|&lt;</button>
+          <button class="timeline-btn" id="timeline-prev" title="Previous">&lt;</button>
+          <button class="timeline-btn" id="timeline-play" title="Play">&#9654;</button>
+          <button class="timeline-btn" id="timeline-stop" title="Stop">&#9632;</button>
+          <button class="timeline-btn" id="timeline-next" title="Next">&gt;</button>
+          <button class="timeline-btn" id="timeline-end" title="End">&gt;|</button>
+          <button class="timeline-btn" id="timeline-add-keyframe" title="Add Keyframe" style="color:var(--selected);">&#9679;</button>
+          <button class="timeline-btn" id="timeline-remove-keyframe" title="Remove Keyframe" style="color:var(--text-dim);">-&#9679;</button>
+          <div style="display:flex; align-items:center; gap:4px; margin-left:8px;">
+            <label style="font-size:10px; color:var(--text-dim);">Frame:</label>
+            <input type="number" id="timeline-frame" value="1" min="1" max="10000" style="width:50px; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text); padding:2px 4px; font-size:10px; font-family:monospace;" />
+            <span style="font-size:10px; color:var(--text-dim);">/</span>
+            <input type="number" id="timeline-end-frame" value="250" min="1" max="100000" style="width:50px; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text); padding:2px 4px; font-size:10px; font-family:monospace;" />
+            <span style="font-size:10px; color:var(--accent);" id="timeline-fps">24 FPS</span>
+          </div>
+        </div>
+        <div id="timeline-ruler"></div>
+        <div id="timeline-track"></div>
+        <div id="timeline-playhead"></div>
+      </div>
+
+      <div id="bottom-bar">
+        <div id="shortcuts-help">
+          <span>Q: Cursor</span>
+          <span>G: Move</span>
+          <span>R: Rotate</span>
+          <span>S: Scale</span>
+          <span>E: Extrude</span>
+          <span>I: Inset</span>
+          <span>K: Knife</span>
+          <span>X: Delete</span>
+          <span>Tab: Toggle Mode</span>
+          <span>1/2/3: V/E/F</span>
+          <span>Ctrl+Z/Y: Undo/Redo</span>
+          <span>Ctrl+D: Duplicate</span>
+          <span>Ctrl+A: Apply</span>
+          <span>F: Focus</span>
+          <span>H: Hide</span>
+          <span>M: Measure</span>
+          <span>N: Panel</span>
+          <span>Z: Pivot</span>
+          <span>Shift+A: Add</span>
+          <span>Ctrl+B: Bevel</span>
+          <span>Ctrl+R: Loop Cut</span>
+          <span>Arrows: Timeline</span>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
