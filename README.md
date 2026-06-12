@@ -1,163 +1,161 @@
-<p align="center">
-  <img src="src-tauri/icons/icon.ico" alt="Lili Modeler" width="100"/>
-</p>
+<div align="center">
 
-<h1 align="center">Lili Modeler</h1>
+<img src="src-tauri/icons/icon.png" alt="Lili Modeler" width="180"/>
 
-<p align="center">
-  <strong>A lightweight, cross-platform 3D modeling application for engineering students.</strong>
-</p>
+# Lili Modeler
 
-<p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.0-blue" alt="Version"/>
-  <img src="https://img.shields.io/badge/rust-2021-orange" alt="Rust Edition"/>
-  <img src="https://img.shields.io/badge/tauri-v2-green" alt="Tauri v2"/>
-  <img src="https://img.shields.io/badge/three.js-0.168-black" alt="Three.js"/>
-  <img src="https://img.shields.io/badge/license-MIT-yellow" alt="License"/>
-</p>
+### Open-source 3D modeling for engineers
 
-<p align="center">
-  Built with <a href="https://v2.tauri.app/">Tauri v2</a> + <a href="https://www.rust-lang.org/">Rust</a> + <a href="https://threejs.org/">Three.js</a>
-</p>
+<br/>
 
----
+![Version](https://img.shields.io/badge/version-0.1.0-blue?style=for-the-badge)
+![Rust](https://img.shields.io/badge/rust-2021-orange?style=for-the-badge)
+![Tauri](https://img.shields.io/badge/tauri-v2-green?style=for-the-badge)
+![Three.js](https://img.shields.io/badge/three.js-0.168-black?style=for-the-badge)
+![License](https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge)
 
-## Overview
+<br/>
 
-Lili Modeler is a desktop 3D modeling application that aims to bring Blender-level functionality in a lightweight, fast package tailored for engineering students. It combines a high-performance Rust backend with a Three.js-powered viewport, all wrapped in a native desktop shell via Tauri v2.
+**Lili Modeler** is a lightweight, cross-platform 3D modeling application<br/>
+built for engineering students who need real tools without the bloat.
 
-**Why?** Existing 3D tools are either too heavy (Blender at 200MB+), too simple (online viewers), or too expensive (Fusion 360). Lili Modeler fills the gap — fast startup, small binary size (~5MB), and the core features engineers actually need.
+<br/>
+
+[Getting Started](#getting-started) · [Features](#features) · [Screenshots](#screenshots) · [Keyboard Shortcuts](#keyboard-shortcuts) · [Contributing](#contributing)
+
+</div>
 
 ---
 
-## Key Features
+<br/>
 
-<table>
-<tr>
-<td width="50%">
+## Why Lili Modeler?
 
-### Modeling & Editing
-- **12 Primitive Types** — Cube, Sphere, Cylinder, Torus, Plane, Cone, Monkey, Tetrahedron, Octahedron, Icosahedron, Dodecahedron, Torus Knot
-- **Edit Mode** — Vertex, Edge, and Face selection with click and marquee
+| | Blender | Fusion 360 | **Lili Modeler** |
+|---|---------|-----------|------------------|
+| Binary size | ~200MB | ~3GB | **~5MB** |
+| Startup time | 5-15s | 10-30s | **<1s** |
+| Price | Free | $$$ | **Free** |
+| Full mesh editing | Yes | Limited | **Yes** |
+| Import STL/GLTF | Yes | Yes | **Yes** |
+| Sculpt mode | Yes | No | **Yes** |
+| Cross-platform | Yes | Yes | **Yes** |
+
+<br/>
+
+## Features
+
+### Modeling
+
+- **12 Primitive Types** — Cube, Sphere, Cylinder, Torus, Plane, Cone, Monkey (Suzanne), Tetrahedron, Octahedron, Icosahedron, Dodecahedron, Torus Knot
+- **Edit Mode** — Full vertex, edge, and face selection and manipulation
 - **Boolean Operations** — Union, Difference, Intersect
-- **Modifiers** — Bevel, Extrude, Inset, Loop Cut, Remesh, Skin, Lattice, Shrinkwrap, Bisect, Shear
+- **Modifiers** — Bevel, Extrude, Inset, Loop Cut, Mirror, Array, Remesh, Skin, Lattice, Shrinkwrap, Bisect, Shear, Subdivision Surface
 - **Shading** — Smooth and Flat per-object
 
-</td>
-<td width="50%">
-
 ### Sculpt Mode
-- **6 Brushes** — Draw, Grab, Smooth, Inflate, Pinch, Flatten
-- Configurable brush **size** and **strength**
-- Real-time vertex deformation via raycasting
-- Full undo support on sculpt operations
 
-</td>
-</tr>
-<tr>
-<td>
+- **6 Brushes** — Draw, Grab, Smooth, Inflate, Pinch, Flatten
+- Configurable brush size and strength
+- Real-time vertex deformation via raycasting
+- Full undo support
 
 ### Import / Export
-- **Import:** OBJ, STL, GLTF/GLB, FBX, PLY
-- **Export:** OBJ, STL, GLTF/GLB
-- Native OS file dialogs
-- Automatic geometry reconstruction from backend mesh data
 
-</td>
-<td>
+| Format | Import | Export |
+|--------|--------|--------|
+| OBJ | Yes | Yes |
+| STL | Yes | Yes |
+| GLTF/GLB | Yes | Yes |
+| FBX | Yes | No |
+| PLY | Yes | No |
 
 ### Viewport
-- **4 Shading Modes** — Solid, Wireframe, Material Preview, Rendered
-- **Interactive Orientation Globe** — Drag to orbit, click axes to snap camera
-- Hover highlights (blue) and selection outlines (orange)
-- Measurement tools (distance + angle)
-- 3D cursor with snapping
 
-</td>
-</tr>
-<tr>
-<td>
+- **4 Shading Modes** — Solid, Wireframe, Material Preview, Rendered
+- **Interactive 3D Orientation Globe** — Drag to orbit, click axes to snap camera view
+- Hover highlights (blue) and selection outlines (orange)
+- Measurement tools — distance and angle
+- 3D cursor with grid/vertex/edge/face snapping
+- Camera presets — Front, Top, Right, Perspective with smooth animated transitions
 
 ### Scene Management
-- **Outliner** with object visibility toggles
+
+- **Outliner** — Object hierarchy with visibility toggles
 - **Properties Panel** — Live position, rotation, scale editing
-- **Material System** — PBR materials with presets, metalness, roughness, opacity
-- **Snapping** — Grid, vertex, edge, face
+- **PBR Materials** — Color, metalness, roughness, opacity with presets
+- **Snapping System** — Grid, vertex, edge, face, proportional editing
 
-</td>
-<td>
+### Animation
 
-### Animation & Physics
-- **Timeline** with frame-based playback
-- **Keyframe System** — FCurves, interpolation, Dope Sheet
-- **Constraints** — Position, Rotation, Scale
-- **Physics** — Rigid Body, Cloth, Soft Body, Fluid, Particles, Force Fields
+- Timeline with frame-based playback and configurable FPS
+- FCurve and keyframe interpolation system
+- Dope Sheet overview
+- Position, rotation, and scale constraints
 
-</td>
-</tr>
-</table>
+### Physics
 
----
+- Rigid Body dynamics
+- Cloth simulation
+- Soft Body deformation
+- Fluid simulation
+- Particle system
+- Force fields (gravity, wind, turbulence)
+
+<br/>
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   Lili Modeler                      │
-├──────────────────────┬──────────────────────────────┤
-│   Frontend (TS)      │      Backend (Rust)          │
-│                      │                              │
-│   Three.js Renderer  │  BMesh Half-Edge Structure   │
-│   TransformControls  │  Mesh Operations & Modifiers │
-│   Undo/Redo (State)  │  Sculpt Deformation Engine   │
-│   Outliner / Props   │  Import/Export Pipeline       │
-│   Event System       │  Path Tracer (BVH)           │
-│   Timeline UI        │  Animation & Physics Engine   │
-│                      │  Node Editor (150+ nodes)     │
-├──────────────────────┴──────────────────────────────┤
-│                  Tauri v2 Bridge                     │
-│          IPC Commands  │  Plugin System              │
-├─────────────────────────────────────────────────────┤
-│   Plugins: dialog, fs, clipboard, shell, window-state│
-└─────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                      Lili Modeler                            │
+├────────────────────────────┬─────────────────────────────────┤
+│   Frontend (TypeScript)    │      Backend (Rust)             │
+│                            │                                 │
+│   Three.js WebGL Renderer  │   BMesh Half-Edge Structure     │
+│   TransformControls        │   Mesh Ops & Modifiers          │
+│   Undo/Redo State Snapshots│   Sculpt Deformation Engine     │
+│   Outliner & Properties    │   Import/Export Pipeline        │
+│   Event System & Tools     │   Path Tracer with BVH          │
+│   Timeline UI              │   Animation & Physics Engine     │
+│                            │   Node Editor (150+ nodes)      │
+├────────────────────────────┴─────────────────────────────────┤
+│                    Tauri v2 IPC Bridge                        │
+│         dialog · fs · clipboard · shell · window-state       │
+└──────────────────────────────────────────────────────────────┘
 ```
 
----
+<br/>
 
 ## Tech Stack
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| Desktop Shell | [Tauri v2](https://v2.tauri.app/) | Native window, file dialogs, permissions |
-| Backend | [Rust](https://www.rust-lang.org/) | Mesh operations, scene graph, import/export |
-| Rendering | [Three.js](https://threejs.org/) | WebGL viewport, materials, lighting |
-| Language | [TypeScript](https://www.typescriptlang.org/) | Type-safe frontend logic |
-| Build | [Vite](https://vitejs.dev/) | Fast HMR and bundling |
-| Mesh System | BMesh (half-edge) | Topological mesh data structure |
+| Layer | Technology |
+|-------|-----------|
+| Desktop Shell | [Tauri v2](https://v2.tauri.app/) — native window, file dialogs, ~5MB binary |
+| Backend | [Rust](https://www.rust-lang.org/) — mesh ops, scene graph, physics, animation |
+| Rendering | [Three.js](https://threejs.org/) — WebGL viewport, PBR materials, lighting |
+| Language | [TypeScript](https://www.typescriptlang.org/) — type-safe frontend |
+| Build | [Vite](https://vitejs.dev/) — instant HMR, optimized bundles |
+| Mesh Core | BMesh half-edge — Blender-inspired topological data structure |
 
----
+<br/>
 
 ## Getting Started
 
 ### Prerequisites
 
-| Requirement | Version | Install |
-|------------|---------|---------|
-| [Rust](https://rustup.rs/) | Latest stable | `rustup update` |
+| Tool | Version | Install |
+|------|---------|---------|
+| [Rust](https://rustup.rs/) | Latest stable | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
 | [Node.js](https://nodejs.org/) | v18+ | [Download](https://nodejs.org/) |
-| [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/) | — | See link for OS-specific deps |
+| [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/) | — | OS-specific dependencies |
 
-### Installation
+### Quick Start
 
 ```bash
-# Clone the repository
 git clone https://github.com/Zke-plof/lili-modeler.git
 cd lili-modeler
-
-# Install frontend dependencies
 npm install
-
-# Start development server
 cargo tauri dev
 ```
 
@@ -167,105 +165,118 @@ cargo tauri dev
 cargo tauri build
 ```
 
-The output binary will be in `src-tauri/target/release/`.
+Output binary: `src-tauri/target/release/lili-modeler`
 
----
+<br/>
 
 ## Project Structure
 
 ```
 lili-modeler/
-├── src/                          # Frontend
-│   ├── main.ts                   # Core: viewport, tools, undo, events (~2900 lines)
-│   └── styles.css                # Blender-inspired dark theme
-├── src-tauri/                    # Backend
+├── src/                          Frontend
+│   ├── main.ts                   Core viewport, tools, undo, events (~2900 lines)
+│   └── styles.css                Blender-inspired dark theme
+│
+├── src-tauri/                    Backend
 │   ├── src/
-│   │   ├── main.rs               # Tauri entry point
+│   │   ├── main.rs               Tauri entry point
 │   │   ├── engine/
-│   │   │   ├── commands.rs       # 20+ IPC commands (primitives, booleans, import...)
-│   │   │   ├── modifiers.rs      # Modifier stack (bevel, mirror, array, subdivision)
-│   │   │   ├── sculpt.rs         # 20 sculpt brushes
-│   │   │   ├── animation.rs      # FCurves, Keyframes, Constraints, Dope Sheet
-│   │   │   ├── physics.rs        # Rigid body, cloth, soft body, fluid, particles
-│   │   │   ├── nodes.rs          # Node editor (150+ node types)
-│   │   │   ├── renderer.rs       # Path tracer with BVH acceleration
-│   │   │   └── materials.rs      # PBR materials, UV unwrap
+│   │   │   ├── commands.rs       20+ IPC commands
+│   │   │   ├── modifiers.rs      Modifier stack
+│   │   │   ├── sculpt.rs         20 sculpt brushes
+│   │   │   ├── animation.rs      FCurves, Keyframes, Constraints
+│   │   │   ├── physics.rs        Rigid body, cloth, fluid, particles
+│   │   │   ├── nodes.rs          Node editor (150+ types)
+│   │   │   ├── renderer.rs       Path tracer with BVH
+│   │   │   └── materials.rs      PBR materials, UV unwrap
 │   │   ├── mesh/
-│   │   │   ├── bmesh.rs          # BMesh half-edge data structure
-│   │   │   ├── mod.rs            # Mesh operations (extrude, bevel, merge)
-│   │   │   └── primitives.rs     # 12 primitive generators
+│   │   │   ├── bmesh.rs          BMesh half-edge data structure
+│   │   │   ├── mod.rs            Mesh operations
+│   │   │   └── primitives.rs     12 primitive generators
 │   │   ├── io/
-│   │   │   ├── importers.rs      # OBJ, STL, GLTF/GLB import
-│   │   │   └── exporters.rs      # OBJ, STL, GLTF/GLB export
-│   │   ├── scene/mod.rs          # Scene graph, camera, SceneObject
-│   │   └── render/               # GPU renderer (WebGPU/WGSL)
-│   ├── capabilities/             # Tauri v2 permission grants
+│   │   │   ├── importers.rs      OBJ, STL, GLTF importer
+│   │   │   └── exporters.rs      OBJ, STL, GLTF exporter
+│   │   ├── scene/mod.rs          Scene graph, camera
+│   │   └── render/               GPU renderer (WebGPU)
+│   ├── capabilities/             Tauri v2 permissions
 │   └── tauri.conf.json
-├── index.html                    # UI layout (outliner, properties, toolbar, timeline)
+│
+├── index.html                    UI layout
 ├── package.json
 ├── vite.config.ts
 └── README.md
 ```
 
----
+<br/>
 
 ## Keyboard Shortcuts
+
+<details>
+<summary><strong>View all 30+ shortcuts</strong></summary>
 
 | Shortcut | Action | Shortcut | Action |
 |----------|--------|----------|--------|
 | `G` | Move tool | `R` | Rotate tool |
 | `S` | Scale tool | `E` | Extrude |
 | `I` | Inset faces | `B` | Bevel |
+| `K` | Knife cut | `L` | Loop cut |
 | `Ctrl+Z` | Undo | `Ctrl+Y` | Redo |
 | `Ctrl+C` | Copy | `Ctrl+V` | Paste |
 | `Ctrl+D` | Duplicate | `Ctrl+A` | Select all |
-| `X` | Delete | `Tab` | Toggle edit mode |
+| `Shift+A` | Deselect all | `X` | Delete |
+| `Tab` | Toggle edit mode | `Z` | Cycle shading modes |
 | `1` | Vertex select | `2` | Edge select |
-| `3` | Face select | `Z` | Cycle shading modes |
+| `3` | Face select | `M` | Measure |
+| `Space` | Play/pause timeline | `Shift+D` | Duplicate |
+| `Ctrl+B` | Bevel tool | `Ctrl+R` | Loop cut tool |
 | `Numpad 1` | Front view | `Numpad 3` | Right view |
 | `Numpad 7` | Top view | `Numpad 5` | Toggle perspective |
-| `M` | Measure | `Space` | Play/pause timeline |
 
----
+</details>
+
+<br/>
 
 ## Contributing
 
-Contributions are welcome! Here's how to get started:
+Contributions are welcome!
 
 1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
+2. **Create** a feature branch → `git checkout -b feature/amazing-feature`
+3. **Commit** → `git commit -m 'Add amazing feature'`
+4. **Push** → `git push origin feature/amazing-feature`
 5. **Open** a Pull Request
 
-### Development Guidelines
+### Before submitting
 
-- **Rust code**: Run `cargo check` before committing (zero errors required, warnings are fine)
-- **TypeScript code**: Run `npx tsc --noEmit` to verify types
-- **Commit messages**: Use descriptive, imperative-style messages
-- **Code style**: Follow existing patterns — check neighboring files before adding new ones
+- **Rust**: `cargo check` must pass with zero errors
+- **TypeScript**: `npx tsc --noEmit` must pass
+- Follow existing code patterns — check neighboring files first
 
----
+<br/>
 
 ## Roadmap
 
 - [ ] GPU-accelerated viewport rendering
-- [ ] Full node-based material editor
+- [ ] Node-based material editor
 - [ ] UV editing tools
 - [ ] Armature / skeleton system
 - [ ] Particle system UI
-- [ ] Plugin/extension system
-- [ ] Collaborative editing (real-time)
+- [ ] Plugin / extension system
+- [ ] Collaborative editing
 - [ ] Python scripting API
 
----
+<br/>
 
 ## License
 
-Distributed under the **MIT License**. See `LICENSE` for details.
+MIT — do whatever you want with it.
+
+<br/>
 
 ---
 
-<p align="center">
-  Built with passion for engineering students everywhere.
-</p>
+<div align="center">
+
+**Built for engineering students who deserve better tools.**
+
+</div>
