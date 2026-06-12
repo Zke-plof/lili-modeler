@@ -51,6 +51,10 @@
           <button id="btn-mode-vertex" class="mode-btn" data-mode="vertex_paint">Vertex</button>
         </div>
         <div class="status-group">
+          <button id="add-menu-btn" class="menu-btn" title="Add Object" style="font-size:14px; padding:2px 8px;">+</button>
+          <button id="search-btn" class="menu-btn" title="Search Commands (Ctrl+Space)" style="padding:2px 8px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </button>
           <span id="status-text">Ready</span>
           <span id="fps-counter">0 FPS</span>
         </div>
@@ -59,36 +63,36 @@
       <div id="main-layout">
         <div id="toolbar">
           <button class="tool-btn" id="tool-cursor" title="Cursor (Q)">
-            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="currentColor"/></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
           </button>
           <button class="tool-btn" id="tool-move" title="Move (G)">
-            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 2l3 3h-2v5h5v-2l3 3-3 3v-2h-5v5h2l-3 3-3-3h2v-5H5v2L2 12l3-3v2h5V7H9l3-3z" fill="currentColor"/></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
           </button>
           <button class="tool-btn" id="tool-rotate" title="Rotate (R)">
-            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
           </button>
           <button class="tool-btn" id="tool-scale" title="Scale (S)">
-            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M19 12h-2v3h-3v2h5v-5zM7 9h3V7H5v5h2V9zm14-6H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z" fill="currentColor"/></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
           </button>
           <div class="separator"></div>
           <button class="tool-btn" id="tool-extrude" title="Extrude (E)">
-            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M15 3l2.3 2.3-2.89 2.87 1.42 1.42L18.7 6.7 21 9V3h-6zM3 9l2.3-2.3 2.87 2.89 1.42-1.42L6.7 5.3 9 3H3v6zm6 12l-2.3-2.3 2.89-2.87-1.42-1.42L5.3 17.3 3 15v6h6zm12-6l-2.3 2.3-2.87-2.89-1.42 1.42 2.89 2.87L15 21h6v-6z" fill="currentColor"/></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v14"/><path d="M5 10l7 7 7-7"/><rect x="4" y="18" width="16" height="4" rx="1"/></svg>
           </button>
           <button class="tool-btn" id="tool-inset" title="Inset (I)">
-            <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="7" y="7" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
           </button>
           <button class="tool-btn" id="tool-bevel" title="Bevel (Ctrl+B)">
-            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 3h18v2H5v14h14v2H3V3z" fill="currentColor"/><path d="M17 3h4v4h-2V5h-2V3z" fill="currentColor"/></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3H3v18h18V3z"/><path d="M21 3l-7 7"/><path d="M14 10l-7 7"/></svg>
           </button>
           <button class="tool-btn" id="tool-loopcut" title="Loop Cut (Ctrl+R)">
-            <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" stroke-width="2"/></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
           </button>
           <div class="separator"></div>
           <button class="tool-btn" id="tool-knife" title="Knife (K)">
-            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M18.5 2.5L2 19l3.5 3.5L22 6l-3.5-3.5zM7.5 17.5l-3-3 9-9 3 3-9 9z" fill="currentColor"/></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
           </button>
           <button class="tool-btn" id="tool-measure" title="Measure (M)">
-            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M2 12h20M12 2v20M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20l20-16"/><circle cx="2" cy="20" r="1.5" fill="currentColor"/><circle cx="22" cy="4" r="1.5" fill="currentColor"/><path d="M12 8l-2 2"/><path d="M7 13l-2 2"/></svg>
           </button>
         </div>
 
@@ -403,14 +407,31 @@
 
       <div id="timeline-panel">
         <div id="timeline-controls">
-          <button class="timeline-btn" id="timeline-rewind" title="Start">|&lt;</button>
-          <button class="timeline-btn" id="timeline-prev" title="Previous">&lt;</button>
-          <button class="timeline-btn" id="timeline-play" title="Play">&#9654;</button>
-          <button class="timeline-btn" id="timeline-stop" title="Stop">&#9632;</button>
-          <button class="timeline-btn" id="timeline-next" title="Next">&gt;</button>
-          <button class="timeline-btn" id="timeline-end" title="End">&gt;|</button>
-          <button class="timeline-btn" id="timeline-add-keyframe" title="Add Keyframe" style="color:var(--selected);">&#9679;</button>
-          <button class="timeline-btn" id="timeline-remove-keyframe" title="Remove Keyframe" style="color:var(--text-dim);">-&#9679;</button>
+          <button class="timeline-btn" id="timeline-rewind" title="Start">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M3 3h2v10H3V3zm3 5l8-5v10L6 8z"/></svg>
+          </button>
+          <button class="timeline-btn" id="timeline-prev" title="Previous">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M12 3L4 8l8 5V3z"/></svg>
+          </button>
+          <button class="timeline-btn" id="timeline-play" title="Play">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M4 2l10 6-10 6V2z"/></svg>
+          </button>
+          <button class="timeline-btn" id="timeline-stop" title="Stop">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><rect x="3" y="3" width="10" height="10" rx="1"/></svg>
+          </button>
+          <button class="timeline-btn" id="timeline-next" title="Next">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M4 3l8 5-8 5V3z"/></svg>
+          </button>
+          <button class="timeline-btn" id="timeline-end" title="End">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M11 3h2v10h-2V3zM3 3l8 5-8 5V3z"/></svg>
+          </button>
+          <div class="separator" style="height:16px; margin:0 4px;"></div>
+          <button class="timeline-btn" id="timeline-add-keyframe" title="Add Keyframe">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" style="color:var(--selected);"><path d="M8 2l2.5 4.5L15 8l-4.5 1.5L8 14l-2.5-4.5L1 8l4.5-1.5L8 2z"/></svg>
+          </button>
+          <button class="timeline-btn" id="timeline-remove-keyframe" title="Remove Keyframe">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-dim);"><path d="M8 2l2.5 4.5L15 8l-4.5 1.5L8 14l-2.5-4.5L1 8l4.5-1.5L8 2z"/><line x1="4" y1="4" x2="12" y2="12"/></svg>
+          </button>
           <div style="display:flex; align-items:center; gap:4px; margin-left:8px;">
             <label style="font-size:10px; color:var(--text-dim);">Frame:</label>
             <input type="number" id="timeline-frame" value="1" min="1" max="10000" style="width:50px; background:var(--bg-input); border:1px solid var(--border); border-radius:3px; color:var(--text); padding:2px 4px; font-size:10px; font-family:monospace;" />
@@ -425,6 +446,11 @@
       </div>
 
       <div id="bottom-bar">
+        <div id="status-left" style="display:flex;align-items:center;gap:8px;">
+          <span id="status-mode" style="color:var(--accent);font-weight:600;">Object Mode</span>
+          <span id="status-objects" style="color:var(--text-dim);">0 objects</span>
+          <span id="status-verts" style="color:var(--text-dim);">0 verts</span>
+        </div>
         <div id="shortcuts-help">
           <span>Q: Cursor</span>
           <span>G: Move</span>
@@ -447,8 +473,48 @@
           <span>Shift+A: Add</span>
           <span>Ctrl+B: Bevel</span>
           <span>Ctrl+R: Loop Cut</span>
+          <span>Ctrl+Space: Search</span>
           <span>Arrows: Timeline</span>
         </div>
+        <div id="status-right" style="display:flex;align-items:center;gap:8px;">
+          <span id="status-coords" style="color:var(--text-dim);font-family:monospace;font-size:10px;">0.000, 0.000, 0.000</span>
+        </div>
+      </div>
+
+      <div id="command-palette" class="hidden" style="
+        position:fixed; top:30%; left:50%; transform:translateX(-50%);
+        width:420px; max-height:400px; background:var(--bg-panel);
+        border:1px solid var(--border); border-radius:8px;
+        box-shadow:0 12px 40px rgba(0,0,0,0.6);
+        z-index:9999; display:flex; flex-direction:column; overflow:hidden;
+      ">
+        <div style="padding:8px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-dim)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="command-search" placeholder="Search commands..." style="flex:1; background:none; border:none; color:var(--text); font-size:13px; outline:none;" />
+          <kbd style="font-size:10px; color:var(--text-dim); background:var(--bg-input); padding:2px 6px; border-radius:3px; border:1px solid var(--border);">Esc</kbd>
+        </div>
+        <div id="command-list" style="overflow-y:auto; flex:1; padding:4px 0;"></div>
+      </div>
+
+      <div id="quick-add-menu" class="hidden" style="
+        position:fixed; top:40px; left:50%; transform:translateX(-50%);
+        background:var(--bg-panel); border:1px solid var(--border);
+        border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,0.5);
+        z-index:9998; padding:6px 0; min-width:200px;
+      ">
+        <div class="dropdown-label">Mesh</div>
+        <button class="dropdown-item" data-add="cube">Cube</button>
+        <button class="dropdown-item" data-add="sphere">Sphere</button>
+        <button class="dropdown-item" data-add="cylinder">Cylinder</button>
+        <button class="dropdown-item" data-add="torus">Torus</button>
+        <button class="dropdown-item" data-add="cone">Cone</button>
+        <button class="dropdown-item" data-add="plane">Plane</button>
+        <button class="dropdown-item" data-add="grid">Grid</button>
+        <button class="dropdown-item" data-add="ico-sphere">Ico Sphere</button>
+        <button class="dropdown-item" data-add="uv-sphere">UV Sphere</button>
+        <div class="dropdown-label">Curve</div>
+        <button class="dropdown-item" data-add="bezier-curve">Bezier Curve</button>
+        <button class="dropdown-item" data-add="circle">Circle</button>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

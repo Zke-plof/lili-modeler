@@ -2925,4 +2925,235 @@ function applySculptStroke(e: MouseEvent) {
   state.lastSculptPoint = hitPoint.clone();
 }
 
-setStatus('Lili Modeler v0.2.0 - Ready');
+setStatus('Lili Modeler v0.3.0 - Ready');
+
+// ═══════════════════════════════════════════════
+// COMMAND PALETTE (Ctrl+Space)
+// ═══════════════════════════════════════════════
+const commandPalette = document.getElementById('command-palette')!;
+const commandSearch = document.getElementById('command-search') as HTMLInputElement;
+const commandList = document.getElementById('command-list')!;
+let cmdActiveIndex = 0;
+
+interface CommandDef {
+  label: string;
+  icon: string;
+  shortcut?: string;
+  group: string;
+  action: () => void;
+}
+
+function shadeSmooth() {
+  pushUndo();
+  state.selectedObjects.forEach(id => {
+    const obj = state.threeObjects.get(id);
+    if (obj instanceof THREE.Mesh) {
+      (obj.material as THREE.MeshStandardMaterial).flatShading = false;
+      obj.geometry.computeVertexNormals();
+    }
+  });
+}
+
+function shadeFlat() {
+  pushUndo();
+  state.selectedObjects.forEach(id => {
+    const obj = state.threeObjects.get(id);
+    if (obj instanceof THREE.Mesh) {
+      (obj.material as THREE.MeshStandardMaterial).flatShading = true;
+    }
+  });
+}
+
+async function addModifier(type: string) {
+  if (state.selectedObjects.size === 0) return;
+  pushUndo();
+  for (const id of state.selectedObjects) {
+    try { await invoke('add_modifier', { objectId: id, modifierType: type }); } catch { /* fallback */ }
+  }
+  setStatus(`Added ${type} modifier`);
+}
+
+const commands: CommandDef[] = [
+  { label: 'Add Cube', icon: '+', shortcut: 'Shift+A', group: 'Add', action: () => addPrimitive('cube') },
+  { label: 'Add Sphere', icon: '+', group: 'Add', action: () => addPrimitive('sphere') },
+  { label: 'Add Cylinder', icon: '+', group: 'Add', action: () => addPrimitive('cylinder') },
+  { label: 'Add Torus', icon: '+', group: 'Add', action: () => addPrimitive('torus') },
+  { label: 'Add Cone', icon: '+', group: 'Add', action: () => addPrimitive('cone') },
+  { label: 'Add Plane', icon: '+', group: 'Add', action: () => addPrimitive('plane') },
+  { label: 'Add Grid', icon: '+', group: 'Add', action: () => addPrimitive('grid') },
+  { label: 'Add Ico Sphere', icon: '+', group: 'Add', action: () => addPrimitive('ico-sphere') },
+  { label: 'Add UV Sphere', icon: '+', group: 'Add', action: () => addPrimitive('uv-sphere') },
+  { label: 'Delete Selected', icon: '\u2715', shortcut: 'X', group: 'Edit', action: deleteSelected },
+  { label: 'Duplicate', icon: '\u2398', shortcut: 'Ctrl+D', group: 'Edit', action: duplicateObject },
+  { label: 'Undo', icon: '\u21B6', shortcut: 'Ctrl+Z', group: 'Edit', action: undoAction },
+  { label: 'Redo', icon: '\u21B7', shortcut: 'Ctrl+Y', group: 'Edit', action: redoAction },
+  { label: 'Toggle Edit Mode', icon: '\u25A3', shortcut: 'Tab', group: 'Mode', action: toggleMode },
+  { label: 'Sculpt Mode', icon: '\u270E', group: 'Mode', action: () => setMode('sculpt') },
+  { label: 'Object Mode', icon: '\u25CB', group: 'Mode', action: () => setMode('object') },
+  { label: 'Shade Smooth', icon: '\u25D4', group: 'Object', action: shadeSmooth },
+  { label: 'Shade Flat', icon: '\u25CB', group: 'Object', action: shadeFlat },
+  { label: 'Boolean Union', icon: '\u222A', group: 'Boolean', action: () => booleanOp('union') },
+  { label: 'Boolean Difference', icon: '\u2216', group: 'Boolean', action: () => booleanOp('difference') },
+  { label: 'Boolean Intersect', icon: '\u2229', group: 'Boolean', action: () => booleanOp('intersect') },
+  { label: 'Import OBJ', icon: '\u21E7', group: 'File', action: () => document.getElementById('file-import')?.click() },
+  { label: 'Import STL', icon: '\u21E7', group: 'File', action: () => document.getElementById('file-import')?.click() },
+  { label: 'Import GLTF', icon: '\u21E7', group: 'File', action: () => document.getElementById('file-import')?.click() },
+  { label: 'Export OBJ', icon: '\u21E9', group: 'File', action: () => document.getElementById('file-export-obj')?.click() },
+  { label: 'Export STL', icon: '\u21E9', group: 'File', action: () => document.getElementById('file-export-stl')?.click() },
+  { label: 'Export GLTF', icon: '\u21E9', group: 'File', action: () => document.getElementById('file-export-gltf')?.click() },
+  { label: 'Wireframe', icon: '\u25A1', group: 'Viewport', action: () => setViewportShading('wireframe') },
+  { label: 'Solid', icon: '\u25A0', group: 'Viewport', action: () => setViewportShading('solid') },
+  { label: 'Material Preview', icon: '\u25C6', group: 'Viewport', action: () => setViewportShading('material') },
+  { label: 'Rendered', icon: '\u2600', group: 'Viewport', action: () => setViewportShading('rendered') },
+  { label: 'Measure Tool', icon: '\u2571', shortcut: 'M', group: 'Tool', action: () => setTool('measure') },
+  { label: 'Knife Tool', icon: '\u2E22', shortcut: 'K', group: 'Tool', action: () => setTool('knife') },
+  { label: 'Play Animation', icon: '\u25B6', shortcut: 'Space', group: 'Animation', action: () => startPlayback() },
+  { label: 'Stop Animation', icon: '\u25A0', shortcut: 'Esc', group: 'Animation', action: stopTimeline },
+  { label: 'Add Array Modifier', icon: '\u2261', group: 'Modifier', action: () => addModifier('array') },
+  { label: 'Add Mirror Modifier', icon: '\u257E', group: 'Modifier', action: () => addModifier('mirror') },
+  { label: 'Add Subdivision', icon: '\u2573', group: 'Modifier', action: () => addModifier('subdivision') },
+];
+
+function renderCommandPalette(filter: string = '') {
+  const lower = filter.toLowerCase();
+  const filtered = commands.filter(c => c.label.toLowerCase().includes(lower));
+  cmdActiveIndex = 0;
+
+  let html = '';
+  let lastGroup = '';
+  filtered.forEach((cmd, i) => {
+    if (cmd.group !== lastGroup) {
+      html += `<div class="cmd-group-label">${cmd.group}</div>`;
+      lastGroup = cmd.group;
+    }
+    html += `<div class="cmd-item${i === 0 ? ' active' : ''}" data-cmd="${i}">
+      <span class="cmd-icon">${cmd.icon}</span>
+      <span>${cmd.label}</span>
+      ${cmd.shortcut ? `<span class="cmd-shortcut">${cmd.shortcut}</span>` : ''}
+    </div>`;
+  });
+  commandList.innerHTML = html || '<div style="padding:12px;color:var(--text-dim);text-align:center;">No commands found</div>';
+
+  commandList.querySelectorAll('.cmd-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.getAttribute('data-cmd')!);
+      filtered[idx]?.action();
+      hideCommandPalette();
+    });
+  });
+}
+
+function showCommandPalette() {
+  commandPalette.classList.remove('hidden');
+  commandSearch.value = '';
+  renderCommandPalette();
+  commandSearch.focus();
+}
+
+function hideCommandPalette() {
+  commandPalette.classList.add('hidden');
+  commandSearch.blur();
+}
+
+commandSearch?.addEventListener('input', () => renderCommandPalette(commandSearch.value));
+
+commandSearch?.addEventListener('keydown', (e: KeyboardEvent) => {
+  const items = commandList.querySelectorAll('.cmd-item');
+  if (e.key === 'Escape') { hideCommandPalette(); return; }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    cmdActiveIndex = Math.min(cmdActiveIndex + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('active', i === cmdActiveIndex));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    cmdActiveIndex = Math.max(cmdActiveIndex - 1, 0);
+    items.forEach((el, i) => el.classList.toggle('active', i === cmdActiveIndex));
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    items[cmdActiveIndex]?.dispatchEvent(new Event('click'));
+  }
+});
+
+document.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.ctrlKey && e.code === 'Space') {
+    e.preventDefault();
+    if (commandPalette.classList.contains('hidden')) showCommandPalette();
+    else hideCommandPalette();
+  }
+});
+
+// ═══════════════════════════════════════════════
+// QUICK-ADD MENU (topbar + button)
+// ═══════════════════════════════════════════════
+const quickAddMenu = document.getElementById('quick-add-menu')!;
+const addMenuBtn = document.getElementById('add-menu-btn') as HTMLButtonElement;
+
+function toggleQuickAddMenu() {
+  if (quickAddMenu.classList.contains('hidden')) {
+    const rect = addMenuBtn.getBoundingClientRect();
+    quickAddMenu.style.left = rect.left + 'px';
+    quickAddMenu.style.top = (rect.bottom + 4) + 'px';
+    quickAddMenu.style.transform = 'none';
+    quickAddMenu.classList.remove('hidden');
+  } else {
+    quickAddMenu.classList.add('hidden');
+  }
+}
+
+addMenuBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleQuickAddMenu();
+});
+
+quickAddMenu.querySelectorAll('.dropdown-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const type = btn.getAttribute('data-add');
+    if (type) addPrimitive(type);
+    quickAddMenu.classList.add('hidden');
+  });
+});
+
+document.addEventListener('click', () => quickAddMenu.classList.add('hidden'));
+
+// Search button opens command palette
+document.getElementById('search-btn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  showCommandPalette();
+});
+
+// ═══════════════════════════════════════════════
+// STATUS BAR
+// ═══════════════════════════════════════════════
+const statusMode = document.getElementById('status-mode');
+const statusObjects = document.getElementById('status-objects');
+const statusVerts = document.getElementById('status-verts');
+const statusCoords = document.getElementById('status-coords');
+
+function updateStatusBar() {
+  if (statusMode) statusMode.textContent = state.mode === 'object' ? 'Object Mode' : state.mode === 'edit' ? `Edit Mode (${state.selectMode})` : 'Sculpt Mode';
+  if (statusObjects) statusObjects.textContent = `${state.objects.size} object${state.objects.size !== 1 ? 's' : ''}`;
+  let totalVerts = 0;
+  state.objects.forEach((_o, id) => { const m = state.threeObjects.get(id); if (m && (m as any).geometry) totalVerts += ((m as any).geometry as THREE.BufferGeometry).attributes.position.count; });
+  if (statusVerts) statusVerts.textContent = `${totalVerts} verts`;
+}
+updateStatusBar();
+setInterval(updateStatusBar, 500);
+
+// Mouse coordinates in viewport
+renderer.domElement.addEventListener('mousemove', (e: MouseEvent) => {
+  if (!statusCoords) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  const ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  const rc = new THREE.Raycaster();
+  rc.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
+  const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  const target = new THREE.Vector3();
+  rc.ray.intersectPlane(plane, target);
+  if (target) statusCoords.textContent = `${target.x.toFixed(3)}, ${target.y.toFixed(3)}, ${target.z.toFixed(3)}`;
+});
+
+function startPlayback() {
+  if (state.timeline.playing) return;
+  state.timeline.playing = true;
+}
