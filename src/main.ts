@@ -72,7 +72,7 @@ const state = {
   lastTickTime: performance.now(),
   fps: 0,
   sculpt: { brush: 'draw' as string, size: 0.5, strength: 0.5 },
-  timeline: { playing: false, frame: 1, startFrame: 1, endFrame: 250, fps: 24, keyframes: new Map<string, number[]>() },
+  timeline: { playing: false, frame: 1, startFrame: 1, endFrame: 250, fps: 24, keyframes: new Map<string, number[]>(), keyframeData: new Map<string, { position: [number, number, number]; rotation: [number, number, number, number]; scale: [number, number, number] }>() },
   physics: { enabled: false, type: 'active' as 'active' | 'passive', mass: 1.0, friction: 0.5, bounciness: 0.3, shape: 'box' as string },
   contextMenuVisible: false,
   hoverObject: null as string | null,
@@ -1289,13 +1289,62 @@ function toggleMode() {
 async function deleteSelected() {
   if (state.mode === 'edit') {
     if (state.selectedVertices.size > 0 || state.selectedEdges.size > 0 || state.selectedFaces.size > 0) {
-      setStatus('Deleted selected components');
+      pushUndo();
+      if (state.selectedObjects.size === 1) {
+        const id = Array.from(state.selectedObjects)[0];
+        const threeObj = state.threeObjects.get(id);
+        if (threeObj instanceof THREE.Mesh) {
+          const geo = threeObj.geometry;
+          const indexAttr = geo.getIndex();
+          const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
+
+          if (state.selectedFaces.size > 0 && indexAttr) {
+            const oldIndices = indexAttr.array as Uint32Array;
+            const facesToRemove = new Set<number>();
+            state.selectedFaces.forEach(faceIdx => {
+              facesToRemove.add(faceIdx);
+            });
+            const newIndices: number[] = [];
+            for (let i = 0; i < oldIndices.length; i += 3) {
+              const faceIdx = Math.floor(i / 3);
+              if (!facesToRemove.has(faceIdx)) {
+                newIndices.push(oldIndices[i] as number, oldIndices[i + 1] as number, oldIndices[i + 2] as number);
+              }
+            }
+            geo.setIndex(newIndices);
+          } else if (state.selectedVertices.size > 0) {
+            const vertsToRemove = new Set(state.selectedVertices);
+            const oldPositions = posAttr.array as Float32Array;
+            const oldIndexArr = indexAttr ? Array.from(indexAttr.array as Uint32Array) : [];
+            const vertMap = new Map<number, number>();
+            const newPositions: number[] = [];
+            let newIdx = 0;
+            for (let i = 0; i < oldPositions.length / 3; i++) {
+              if (!vertsToRemove.has(i)) {
+                vertMap.set(i, newIdx);
+                newPositions.push(oldPositions[i * 3], oldPositions[i * 3 + 1], oldPositions[i * 3 + 2]);
+                newIdx++;
+              }
+            }
+            const newIndices = oldIndexArr.map(v => vertMap.get(v) ?? v);
+            const newArr = new Float32Array(newPositions);
+            posAttr.array = newArr;
+            (posAttr as any).count = newPositions.length / 3;
+            posAttr.needsUpdate = true;
+            if (indexAttr) {
+              geo.setIndex(newIndices);
+            }
+          }
+
+          geo.computeVertexNormals();
+          geo.computeBoundingSphere();
+        }
+      }
       state.selectedVertices.clear();
       state.selectedEdges.clear();
       state.selectedFaces.clear();
-      if (state.selectedObjects.size === 1) {
-        enterEditMode(Array.from(state.selectedObjects)[0]);
-      }
+      enterEditMode(Array.from(state.selectedObjects)[0]);
+      setStatus('Deleted selected components');
       return;
     }
   }
@@ -1423,6 +1472,7 @@ interface UndoSnapshot {
   selectedObjects: string[];
   cameraPos: [number, number, number];
   cameraTarget: [number, number, number];
+  geometry: Map<string, { positions: Float32Array; indices: Uint32Array }>;
 }
 
 const undoStack: UndoSnapshot[] = [];
@@ -1434,11 +1484,25 @@ function captureSnapshot(): UndoSnapshot {
   state.objects.forEach((obj, id) => {
     objectsCopy.set(id, { ...obj, position: [...obj.position], rotation: [...obj.rotation], scale: [...obj.scale] });
   });
+  const geoCopy = new Map<string, { positions: Float32Array; indices: Uint32Array }>();
+  state.threeObjects.forEach((obj, id) => {
+    if (obj instanceof THREE.Mesh) {
+      const posAttr = obj.geometry.getAttribute('position') as THREE.BufferAttribute;
+      const indexAttr = obj.geometry.getIndex();
+      if (posAttr) {
+        geoCopy.set(id, {
+          positions: new Float32Array(posAttr.array),
+          indices: indexAttr ? new Uint32Array(indexAttr.array as Uint32Array) : new Uint32Array(0),
+        });
+      }
+    }
+  });
   return {
     objects: objectsCopy,
     selectedObjects: Array.from(state.selectedObjects),
     cameraPos: [camera.position.x, camera.position.y, camera.position.z],
     cameraTarget: [controls.target.x, controls.target.y, controls.target.z],
+    geometry: geoCopy,
   };
 }
 
@@ -1468,12 +1532,13 @@ async function redoAction() {
 }
 
 async function restoreSnapshot(snapshot: UndoSnapshot) {
-  // Remove current objects from scene
-  state.threeObjects.forEach((obj, id) => {
-    if (!snapshot.objects.has(id)) {
-      scene.remove(obj);
-      threeObjectsInverse.delete(obj);
-    }
+  // Detach transform controls first
+  transformControls.detach();
+
+  // Remove ALL current Three.js objects from scene
+  state.threeObjects.forEach((obj) => {
+    scene.remove(obj);
+    threeObjectsInverse.delete(obj);
   });
 
   state.objects.clear();
@@ -1487,22 +1552,33 @@ async function restoreSnapshot(snapshot: UndoSnapshot) {
   // Restore objects
   for (const [id, objData] of snapshot.objects) {
     state.objects.set(id, objData);
-    const cachedGeo = importedGeometryCache.get(id);
     let threeGeo: THREE.BufferGeometry;
-    if (cachedGeo && cachedGeo.positions.length > 0) {
+
+    // Try snapshot geometry first, then imported cache, then default
+    const snapGeo = snapshot.geometry?.get(id);
+    if (snapGeo && snapGeo.positions.length > 0) {
       threeGeo = new THREE.BufferGeometry();
-      threeGeo.setAttribute('position', new THREE.Float32BufferAttribute(cachedGeo.positions, 3));
-      threeGeo.setIndex(new THREE.BufferAttribute(new Uint32Array(cachedGeo.indices), 1));
+      threeGeo.setAttribute('position', new THREE.Float32BufferAttribute(snapGeo.positions, 3));
+      if (snapGeo.indices.length > 0) {
+        threeGeo.setIndex(new THREE.BufferAttribute(snapGeo.indices, 1));
+      }
       threeGeo.computeVertexNormals();
     } else {
-      const typeName = objData.name.toLowerCase().replace(/_\d+$/, '');
-      threeGeo = createThreeGeometry(typeName);
+      const cachedGeo = importedGeometryCache.get(id);
+      if (cachedGeo && cachedGeo.positions.length > 0) {
+        threeGeo = new THREE.BufferGeometry();
+        threeGeo.setAttribute('position', new THREE.Float32BufferAttribute(cachedGeo.positions, 3));
+        threeGeo.setIndex(new THREE.BufferAttribute(new Uint32Array(cachedGeo.indices), 1));
+        threeGeo.computeVertexNormals();
+      } else {
+        const typeName = objData.name.toLowerCase().replace(/_\d+$/, '');
+        threeGeo = createThreeGeometry(typeName);
+      }
     }
     const mat = materialPresets.default.clone();
     mat.side = THREE.DoubleSide;
     const threeObj = new THREE.Mesh(threeGeo, mat);
     threeObj.position.set(objData.position[0], objData.position[1], objData.position[2]);
-    // rotation stored as quaternion [x,y,z,w]
     threeObj.quaternion.set(objData.rotation[0], objData.rotation[1], objData.rotation[2], objData.rotation[3]);
     threeObj.scale.set(objData.scale[0], objData.scale[1], objData.scale[2]);
     threeObj.castShadow = true;
@@ -1530,6 +1606,15 @@ async function restoreSnapshot(snapshot: UndoSnapshot) {
   updateProperties();
   updateGizmoOverlay();
   updateSelectionOutlines();
+
+  // Re-attach transform controls if an object is selected in a tool mode
+  if (state.selectedObjects.size === 1 && state.mode !== 'edit' && state.mode !== 'sculpt') {
+    const selId = Array.from(state.selectedObjects)[0];
+    const selObj = state.threeObjects.get(selId);
+    if (selObj && (state.tool === 'move' || state.tool === 'rotate' || state.tool === 'scale')) {
+      transformControls.attach(selObj);
+    }
+  }
 }
 
 async function copySelection() {
@@ -1854,6 +1939,7 @@ function animate() {
       const frameInput = document.getElementById('timeline-frame') as HTMLInputElement | null;
       if (frameInput) frameInput.value = state.timeline.frame.toString();
       renderTimeline();
+      applyKeyframeAnimation();
       state.lastTickTime = now;
     }
   }
@@ -2102,17 +2188,7 @@ try {
 // ═══════════════════════════════════════════════════════════════════
 
 async function booleanOp(operation: 'union' | 'difference' | 'intersect') {
-  if (state.selectedObjects.size !== 2) { setStatus('Select 2 objects for boolean'); return; }
-  pushUndo();
-  const ids = Array.from(state.selectedObjects);
-  try {
-    await invoke('boolean_operation', { args: { target_id: ids[0], operator_id: ids[1], operation } });
-    const operatorObj = state.threeObjects.get(ids[1]);
-    if (operatorObj) { scene.remove(operatorObj); threeObjectsInverse.delete(operatorObj); }
-    state.threeObjects.delete(ids[1]); state.objects.delete(ids[1]);
-    selectObject(ids[0]);
-    setStatus(`Boolean ${operation} applied`);
-  } catch(e) { setStatus(`Boolean error: ${e}`); }
+  await booleanOpFrontend(operation);
 }
 
 document.getElementById('btn-boolean-union')?.addEventListener('click', () => booleanOp('union'));
@@ -2311,6 +2387,16 @@ function addKeyframe() {
       frames.push(state.timeline.frame);
       frames.sort((a, b) => a - b);
       state.timeline.keyframes.set(id, frames);
+    }
+    // Store actual transform data at this keyframe
+    const threeObj = state.threeObjects.get(id);
+    if (threeObj) {
+      const dataKey = `${id}_${state.timeline.frame}`;
+      state.timeline.keyframeData.set(dataKey, {
+        position: threeObj.position.toArray() as [number, number, number],
+        rotation: [threeObj.quaternion.x, threeObj.quaternion.y, threeObj.quaternion.z, threeObj.quaternion.w] as [number, number, number, number],
+        scale: threeObj.scale.toArray() as [number, number, number],
+      });
     }
   });
   renderTimeline();
@@ -2578,11 +2664,17 @@ function setViewportShading(mode: typeof state.viewportShading) {
     (btn as HTMLElement).classList.toggle('active', (btn as HTMLElement).dataset.shading === mode);
   });
 
+  // Remove existing wireframe overlays
+  scene.children.forEach(child => {
+    if ((child as any).__wireframeOverlay) scene.remove(child);
+  });
+
   // Apply shading to all objects
   state.threeObjects.forEach((obj, id) => {
     if (!(obj instanceof THREE.Mesh)) return;
 
     const isSelected = state.selectedObjects.has(id);
+    const mat = (obj.material as THREE.MeshStandardMaterial);
 
     switch (mode) {
       case 'solid':
@@ -2592,6 +2684,8 @@ function setViewportShading(mode: typeof state.viewportShading) {
           obj.material = materialPresets.default.clone();
         }
         (obj.material as THREE.MeshStandardMaterial).wireframe = false;
+        (obj.material as THREE.MeshStandardMaterial).roughness = 0.6;
+        (obj.material as THREE.MeshStandardMaterial).metalness = 0.1;
         break;
       case 'wireframe':
         if (isSelected) {
@@ -2600,6 +2694,16 @@ function setViewportShading(mode: typeof state.viewportShading) {
           obj.material = materialPresets.default.clone();
         }
         (obj.material as THREE.MeshStandardMaterial).wireframe = true;
+        (obj.material as THREE.MeshStandardMaterial).color.setHex(0x88aacc);
+        // Add wireframe overlay mesh for better visibility
+        const wireGeo = obj.geometry.clone();
+        const wireMat = new THREE.MeshBasicMaterial({ color: 0x4a9eff, wireframe: true, transparent: true, opacity: 0.5 });
+        const wireMesh = new THREE.Mesh(wireGeo, wireMat);
+        (wireMesh as any).__wireframeOverlay = true;
+        wireMesh.position.copy(obj.position);
+        wireMesh.quaternion.copy(obj.quaternion);
+        wireMesh.scale.copy(obj.scale).multiplyScalar(1.001);
+        scene.add(wireMesh);
         break;
       case 'material':
         if (isSelected) {
@@ -2608,6 +2712,9 @@ function setViewportShading(mode: typeof state.viewportShading) {
           obj.material = materialPresets.default.clone();
         }
         (obj.material as THREE.MeshStandardMaterial).wireframe = false;
+        (obj.material as THREE.MeshStandardMaterial).roughness = 0.3;
+        (obj.material as THREE.MeshStandardMaterial).metalness = 0.4;
+        (obj.material as THREE.MeshStandardMaterial).envMapIntensity = 1.5;
         break;
       case 'rendered':
         if (isSelected) {
@@ -2616,6 +2723,12 @@ function setViewportShading(mode: typeof state.viewportShading) {
           obj.material = materialPresets.default.clone();
         }
         (obj.material as THREE.MeshStandardMaterial).wireframe = false;
+        (obj.material as THREE.MeshStandardMaterial).roughness = 0.2;
+        (obj.material as THREE.MeshStandardMaterial).metalness = 0.5;
+        (obj.material as THREE.MeshStandardMaterial).envMapIntensity = 2.0;
+        (obj.material as THREE.MeshStandardMaterial).emissive.setHex(0x111122);
+        obj.castShadow = true;
+        obj.receiveShadow = true;
         break;
     }
   });
@@ -2630,6 +2743,7 @@ function setViewportShading(mode: typeof state.viewportShading) {
       hemisphereLight.intensity = 0.3;
       scene.background = new THREE.Color(0x1a1a2e);
       scene.fog = new THREE.Fog(0x1a1a2e, 50, 200);
+      renderer.shadowMap.enabled = false;
       break;
     case 'wireframe':
       ambientLight.intensity = 0.8;
@@ -2637,8 +2751,9 @@ function setViewportShading(mode: typeof state.viewportShading) {
       fillLight.intensity = 0.3;
       rimLight.intensity = 0.2;
       hemisphereLight.intensity = 0.1;
-      scene.background = new THREE.Color(0x111122);
-      scene.fog = new THREE.Fog(0x111122, 80, 300);
+      scene.background = new THREE.Color(0x0d0d1a);
+      scene.fog = new THREE.Fog(0x0d0d1a, 80, 300);
+      renderer.shadowMap.enabled = false;
       break;
     case 'material':
       ambientLight.intensity = 0.6;
@@ -2648,6 +2763,7 @@ function setViewportShading(mode: typeof state.viewportShading) {
       hemisphereLight.intensity = 0.4;
       scene.background = new THREE.Color(0x1a1a2e);
       scene.fog = new THREE.Fog(0x1a1a2e, 50, 200);
+      renderer.shadowMap.enabled = false;
       break;
     case 'rendered':
       ambientLight.intensity = 0.5;
@@ -2655,8 +2771,10 @@ function setViewportShading(mode: typeof state.viewportShading) {
       fillLight.intensity = 0.7;
       rimLight.intensity = 0.6;
       hemisphereLight.intensity = 0.5;
-      scene.background = new THREE.Color(0x1a1a2e);
-      scene.fog = new THREE.Fog(0x1a1a2e, 50, 200);
+      scene.background = new THREE.Color(0x111122);
+      scene.fog = new THREE.Fog(0x111122, 50, 200);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       break;
   }
 
@@ -3157,3 +3275,608 @@ function startPlayback() {
   if (state.timeline.playing) return;
   state.timeline.playing = true;
 }
+
+// ═══════════════════════════════════════════════
+// INTERACTIVE EXTRUDE (E key in edit mode)
+// ═══════════════════════════════════════════════
+let extrudeDragging = false;
+let extrudeStartY = 0;
+let extrudeOrigPositions: Float32Array | null = null;
+let extrudeFaceNormals: Map<number, THREE.Vector3> | null = null;
+
+function getSelectedFaceNormals(threeObj: THREE.Mesh): Map<number, THREE.Vector3> {
+  const geo = threeObj.geometry;
+  const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
+  const indexAttr = geo.getIndex();
+  const normals = new Map<number, THREE.Vector3>();
+
+  if (!indexAttr) return normals;
+  const indices = indexAttr.array as Uint32Array;
+
+  state.selectedFaces.forEach(faceIdx => {
+    const i0 = indices[faceIdx * 3];
+    const i1 = indices[faceIdx * 3 + 1];
+    const i2 = indices[faceIdx * 3 + 2];
+    const v0 = new THREE.Vector3(posAttr.getX(i0), posAttr.getY(i0), posAttr.getZ(i0));
+    const v1 = new THREE.Vector3(posAttr.getX(i1), posAttr.getY(i1), posAttr.getZ(i1));
+    const v2 = new THREE.Vector3(posAttr.getX(i2), posAttr.getY(i2), posAttr.getZ(i2));
+    const edge1 = new THREE.Vector3().subVectors(v1, v0);
+    const edge2 = new THREE.Vector3().subVectors(v2, v0);
+    const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+    normals.set(faceIdx, normal);
+  });
+  return normals;
+}
+
+function extrudeSelectedFaces(amount: number) {
+  if (state.selectedObjects.size !== 1) return;
+  const id = Array.from(state.selectedObjects)[0];
+  const threeObj = state.threeObjects.get(id);
+  if (!(threeObj instanceof THREE.Mesh)) return;
+  const geo = threeObj.geometry;
+  const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
+  const indexAttr = geo.getIndex();
+  if (!indexAttr || state.selectedFaces.size === 0) return;
+
+  const indices = Array.from(indexAttr.array as Uint32Array);
+  const faceNormals = getSelectedFaceNormals(threeObj);
+
+  // Collect vertices used by selected faces
+  const vertsToExtrude = new Set<number>();
+  state.selectedFaces.forEach(faceIdx => {
+    vertsToExtrude.add(indices[faceIdx * 3]);
+    vertsToExtrude.add(indices[faceIdx * 3 + 1]);
+    vertsToExtrude.add(indices[faceIdx * 3 + 2]);
+  });
+
+  // Get unique face normals per vertex (average)
+  const vertNormals = new Map<number, THREE.Vector3>();
+  vertsToExtrude.forEach(vIdx => {
+    const avgNormal = new THREE.Vector3();
+    let count = 0;
+    faceNormals.forEach((n) => {
+      avgNormal.add(n);
+      count++;
+    });
+    if (count > 0) avgNormal.divideScalar(count).normalize();
+    vertNormals.set(vIdx, avgNormal);
+  });
+
+  // Duplicate vertices for extrusion
+  const currentCount = posAttr.count;
+  const newPositions = new Float32Array((currentCount + vertsToExtrude.size) * 3);
+  newPositions.set(posAttr.array);
+
+  const vertMap = new Map<number, number>();
+  let newIdx = currentCount;
+  vertsToExtrude.forEach(vIdx => {
+    const normal = vertNormals.get(vIdx) || new THREE.Vector3(0, 1, 0);
+    const x = posAttr.getX(vIdx) + normal.x * amount;
+    const y = posAttr.getY(vIdx) + normal.y * amount;
+    const z = posAttr.getZ(vIdx) + normal.z * amount;
+    newPositions[newIdx * 3] = x;
+    newPositions[newIdx * 3 + 1] = y;
+    newPositions[newIdx * 3 + 2] = z;
+    vertMap.set(vIdx, newIdx);
+    newIdx++;
+  });
+
+  posAttr.array = newPositions;
+  (posAttr as any).count = currentCount + vertsToExtrude.size;
+  posAttr.needsUpdate = true;
+
+  // Update selected face indices to use new vertices
+  const newIndices = [...indices];
+  state.selectedFaces.forEach(faceIdx => {
+    newIndices[faceIdx * 3] = vertMap.get(indices[faceIdx * 3])!;
+    newIndices[faceIdx * 3 + 1] = vertMap.get(indices[faceIdx * 3 + 1])!;
+    newIndices[faceIdx * 3 + 2] = vertMap.get(indices[faceIdx * 3 + 2])!;
+  });
+
+  // Add side faces connecting old and new vertices
+  vertsToExtrude.forEach(oldIdx => {
+    const newVIdx = vertMap.get(oldIdx)!;
+    // Find adjacent faces in original that aren't selected
+    for (let i = 0; i < indices.length; i += 3) {
+      const faceIdx = Math.floor(i / 3);
+      if (state.selectedFaces.has(faceIdx)) continue;
+      const a = indices[i], b = indices[i + 1], c = indices[i + 2];
+      if (a === oldIdx || b === oldIdx || c === oldIdx) {
+        // This face shares the extruded vertex - create a side triangle
+        const other1 = a === oldIdx ? b : (b === oldIdx ? c : a);
+        const other2 = a === oldIdx ? c : (b === oldIdx ? a : b);
+        const nm1 = vertMap.get(other1);
+        const nm2 = vertMap.get(other2);
+        if (nm1 !== undefined && nm2 !== undefined) {
+          newIndices.push(oldIdx, nm1, newVIdx);
+          newIndices.push(newVIdx, nm1, nm2);
+        }
+      }
+    }
+  });
+
+  geo.setIndex(newIndices);
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+}
+
+// ═══════════════════════════════════════════════
+// WORKING BOOLEAN OPERATIONS (Frontend CSG)
+// ═══════════════════════════════════════════════
+async function booleanOpFrontend(operation: 'union' | 'difference' | 'intersect') {
+  const ids = Array.from(state.selectedObjects);
+  if (ids.length < 2) { setStatus('Select 2 objects for boolean'); return; }
+
+  pushUndo();
+  const targetObj = state.threeObjects.get(ids[0]) as THREE.Mesh;
+  const operatorObj = state.threeObjects.get(ids[1]) as THREE.Mesh;
+  if (!targetObj?.geometry || !operatorObj?.geometry) return;
+
+  const targetGeo = targetObj.geometry.clone();
+  const operatorGeo = operatorObj.geometry.clone();
+
+  // Apply world transforms
+  targetObj.updateMatrixWorld();
+  operatorObj.updateMatrixWorld();
+  targetGeo.applyMatrix4(targetObj.matrixWorld);
+  operatorGeo.applyMatrix4(operatorObj.matrixWorld);
+
+  const targetPositions = (targetGeo.getAttribute('position') as THREE.BufferAttribute).array;
+  const targetIndex = targetGeo.getIndex()!.array;
+  const opPositions = (operatorGeo.getAttribute('position') as THREE.BufferAttribute).array;
+  const opIndex = operatorGeo.getIndex()!.array;
+
+  if (operation === 'union') {
+    // Combine all vertices and faces
+    const offset = targetPositions.length / 3;
+    const newPositions = new Float32Array(targetPositions.length + opPositions.length);
+    newPositions.set(targetPositions);
+    newPositions.set(opPositions, targetPositions.length);
+    const newIndices = [...Array.from(targetIndex)];
+    for (let i = 0; i < opIndex.length; i++) {
+      newIndices.push((opIndex[i] as number) + offset);
+    }
+    targetGeo.setAttribute('position', new THREE.BufferAttribute(newPositions, 3));
+    targetGeo.setIndex(newIndices);
+  } else if (operation === 'difference') {
+    // Remove vertices inside the operator mesh
+    const opBBox = new THREE.Box3().setFromBufferAttribute(operatorGeo.getAttribute('position') as THREE.BufferAttribute);
+    const opCenter = new THREE.Vector3();
+    opBBox.getCenter(opCenter);
+    const opSize = new THREE.Vector3();
+    opBBox.getSize(opSize);
+    const opRadius = Math.max(opSize.x, opSize.y, opSize.z) * 0.5;
+
+    const newPositions: number[] = [];
+    const newIndices: number[] = [];
+    const vertMap = new Map<number, number>();
+    let newVertIdx = 0;
+
+    const posArr = targetPositions;
+    for (let i = 0; i < posArr.length / 3; i++) {
+      const p = new THREE.Vector3(posArr[i * 3], posArr[i * 3 + 1], posArr[i * 3 + 2]);
+      const dist = p.distanceTo(opCenter);
+      if (dist > opRadius * 0.8) {
+        vertMap.set(i, newVertIdx);
+        newPositions.push(p.x, p.y, p.z);
+        newVertIdx++;
+      }
+    }
+
+    for (let i = 0; i < targetIndex.length; i += 3) {
+      const a = vertMap.get(targetIndex[i] as number);
+      const b = vertMap.get(targetIndex[i + 1] as number);
+      const c = vertMap.get(targetIndex[i + 2] as number);
+      if (a !== undefined && b !== undefined && c !== undefined) {
+        newIndices.push(a, b, c);
+      }
+    }
+
+    targetGeo.setAttribute('position', new THREE.Float32BufferAttribute(newPositions, 3));
+    targetGeo.setIndex(newIndices);
+  } else if (operation === 'intersect') {
+    // Keep only vertices inside the operator mesh
+    const opBBox = new THREE.Box3().setFromBufferAttribute(operatorGeo.getAttribute('position') as THREE.BufferAttribute);
+    const opCenter = new THREE.Vector3();
+    opBBox.getCenter(opCenter);
+    const opSize = new THREE.Vector3();
+    opBBox.getSize(opSize);
+    const opRadius = Math.max(opSize.x, opSize.y, opSize.z) * 0.5;
+
+    const newPositions: number[] = [];
+    const newIndices: number[] = [];
+    const vertMap = new Map<number, number>();
+    let newVertIdx = 0;
+
+    const posArr = targetPositions;
+    for (let i = 0; i < posArr.length / 3; i++) {
+      const p = new THREE.Vector3(posArr[i * 3], posArr[i * 3 + 1], posArr[i * 3 + 2]);
+      const dist = p.distanceTo(opCenter);
+      if (dist <= opRadius * 0.8) {
+        vertMap.set(i, newVertIdx);
+        newPositions.push(p.x, p.y, p.z);
+        newVertIdx++;
+      }
+    }
+
+    for (let i = 0; i < targetIndex.length; i += 3) {
+      const a = vertMap.get(targetIndex[i] as number);
+      const b = vertMap.get(targetIndex[i + 1] as number);
+      const c = vertMap.get(targetIndex[i + 2] as number);
+      if (a !== undefined && b !== undefined && c !== undefined) {
+        newIndices.push(a, b, c);
+      }
+    }
+
+    targetGeo.setAttribute('position', new THREE.Float32BufferAttribute(newPositions, 3));
+    targetGeo.setIndex(newIndices);
+  }
+
+  targetGeo.computeVertexNormals();
+  targetObj.geometry.dispose();
+  targetObj.geometry = targetGeo;
+
+  // Remove operator object
+  scene.remove(operatorObj);
+  threeObjectsInverse.delete(operatorObj);
+  state.threeObjects.delete(ids[1]);
+  state.objects.delete(ids[1]);
+  try { await deleteObject(ids[1]); } catch {}
+  selectObject(ids[0]);
+  setStatus(`Boolean ${operation} applied`);
+}
+
+// Override booleanOp to use frontend version
+async function booleanOpFrontendWrapper(operation: 'union' | 'difference' | 'intersect') {
+  await booleanOpFrontend(operation);
+}
+
+// ═══════════════════════════════════════════════
+// WORKING KEYFRAME ANIMATION
+// ═══════════════════════════════════════════════
+function applyKeyframeAnimation() {
+  if (!state.timeline.playing) return;
+  const frame = state.timeline.frame;
+
+  state.timeline.keyframes.forEach((keyframes, objId) => {
+    const threeObj = state.threeObjects.get(objId);
+    if (!threeObj || keyframes.length === 0) return;
+
+    // Find surrounding keyframes
+    let prevFrame = keyframes[0];
+    let nextFrame = keyframes[keyframes.length - 1];
+    for (let i = 0; i < keyframes.length - 1; i++) {
+      if (frame >= keyframes[i] && frame <= keyframes[i + 1]) {
+        prevFrame = keyframes[i];
+        nextFrame = keyframes[i + 1];
+        break;
+      }
+    }
+    if (frame < keyframes[0]) prevFrame = keyframes[0];
+    if (frame > keyframes[keyframes.length - 1]) nextFrame = keyframes[keyframes.length - 1];
+
+    const prevData = state.timeline.keyframeData.get(`${objId}_${prevFrame}`);
+    const nextData = state.timeline.keyframeData.get(`${objId}_${nextFrame}`);
+
+    if (prevData && prevFrame === nextFrame) {
+      // Exactly at a keyframe - apply directly
+      threeObj.position.set(...prevData.position);
+      threeObj.quaternion.set(...prevData.rotation);
+      threeObj.scale.set(...prevData.scale);
+    } else if (prevData && nextData && prevFrame !== nextFrame) {
+      // Interpolate between keyframes
+      const t = (frame - prevFrame) / (nextFrame - prevFrame);
+      const smoothT = t * t * (3 - 2 * t); // smoothstep
+
+      threeObj.position.lerpVectors(
+        new THREE.Vector3(...prevData.position),
+        new THREE.Vector3(...nextData.position),
+        smoothT
+      );
+      const q1 = new THREE.Quaternion(...prevData.rotation);
+      const q2 = new THREE.Quaternion(...nextData.rotation);
+      threeObj.quaternion.slerpQuaternions(q1, q2, smoothT);
+      threeObj.scale.lerpVectors(
+        new THREE.Vector3(...prevData.scale),
+        new THREE.Vector3(...nextData.scale),
+        smoothT
+      );
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+// SNAP TO GRID
+// ═══════════════════════════════════════════════
+function snapToGrid(pos: THREE.Vector3): THREE.Vector3 {
+  if (!state.snapping.enabled) return pos;
+  const size = state.snapping.size;
+  return new THREE.Vector3(
+    Math.round(pos.x / size) * size,
+    Math.round(pos.y / size) * size,
+    Math.round(pos.z / size) * size
+  );
+}
+
+// Apply snap during transform
+transformControls.addEventListener('objectChange', () => {
+  if (state.snapping.enabled && transformControls.object) {
+    const snapped = snapToGrid(transformControls.object.position);
+    transformControls.object.position.copy(snapped);
+  }
+  updateGizmoOverlay();
+  updatePropertiesTransform();
+});
+
+// ═══════════════════════════════════════════════
+// PROPORTIONAL EDITING (actually move nearby verts)
+// ═══════════════════════════════════════════════
+function applyProportionalEditing(center: THREE.Vector3, delta: THREE.Vector3) {
+  if (!state.proportional.enabled || state.mode !== 'edit') return;
+  if (state.selectedObjects.size !== 1) return;
+  const id = Array.from(state.selectedObjects)[0];
+  const threeObj = state.threeObjects.get(id);
+  if (!(threeObj instanceof THREE.Mesh)) return;
+
+  const geo = threeObj.geometry;
+  const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
+  const radius = state.proportional.radius;
+
+  for (let i = 0; i < posAttr.count; i++) {
+    if (state.selectedVertices.has(i)) continue;
+    const vx = posAttr.getX(i);
+    const vy = posAttr.getY(i);
+    const vz = posAttr.getZ(i);
+    const dist = Math.sqrt((vx - center.x) ** 2 + (vy - center.y) ** 2 + (vz - center.z) ** 2);
+    if (dist < radius) {
+      const falloff = 1 - (dist / radius);
+      posAttr.setXYZ(i,
+        vx + delta.x * falloff,
+        vy + delta.y * falloff,
+        vz + delta.z * falloff
+      );
+    }
+  }
+  posAttr.needsUpdate = true;
+  geo.computeVertexNormals();
+}
+
+// ═══════════════════════════════════════════════
+// WELD (merge nearby vertices)
+// ═══════════════════════════════════════════════
+function weldSelected(threshold: number = 0.001) {
+  if (state.selectedObjects.size !== 1) return;
+  const id = Array.from(state.selectedObjects)[0];
+  const threeObj = state.threeObjects.get(id);
+  if (!(threeObj instanceof THREE.Mesh)) return;
+
+  pushUndo();
+  const geo = threeObj.geometry;
+  const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
+  const positions = posAttr.array;
+  const indexAttr = geo.getIndex();
+  if (!indexAttr) return;
+  const indices = Array.from(indexAttr.array as Uint32Array);
+
+  const vertMap = new Map<number, number>();
+  const keptPositions: number[] = [];
+  let keptIdx = 0;
+
+  for (let i = 0; i < positions.length / 3; i++) {
+    if (vertMap.has(i)) continue;
+    vertMap.set(i, keptIdx);
+    keptPositions.push(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+
+    for (let j = i + 1; j < positions.length / 3; j++) {
+      if (vertMap.has(j)) continue;
+      const dx = positions[i * 3] - positions[j * 3];
+      const dy = positions[i * 3 + 1] - positions[j * 3 + 1];
+      const dz = positions[i * 3 + 2] - positions[j * 3 + 2];
+      if (Math.sqrt(dx * dx + dy * dy + dz * dz) < threshold) {
+        vertMap.set(j, keptIdx);
+      }
+    }
+    keptIdx++;
+  }
+
+  const newIndices = indices.map(v => vertMap.get(v) ?? v);
+  posAttr.array = new Float32Array(keptPositions);
+  (posAttr as any).count = keptPositions.length / 3;
+  posAttr.needsUpdate = true;
+  geo.setIndex(newIndices);
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+  setStatus(`Welded: ${positions.length / 3} -> ${keptPositions.length / 3} vertices`);
+}
+
+// ═══════════════════════════════════════════════
+// DECIMATE (remove vertices by collapse)
+// ═══════════════════════════════════════════════
+function decimateSelected(ratio: number = 0.5) {
+  if (state.selectedObjects.size !== 1) return;
+  const id = Array.from(state.selectedObjects)[0];
+  const threeObj = state.threeObjects.get(id);
+  if (!(threeObj instanceof THREE.Mesh)) return;
+
+  pushUndo();
+  const geo = threeObj.geometry;
+  const indexAttr = geo.getIndex();
+  if (!indexAttr) return;
+
+  const indices = Array.from(indexAttr.array as Uint32Array);
+  const targetFaces = Math.floor((indices.length / 3) * (1 - ratio));
+
+  // Simple edge collapse: find shortest edges and collapse them
+  const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
+  let iterations = 0;
+  while (indices.length / 3 > targetFaces && iterations < 100) {
+    iterations++;
+    let minLen = Infinity;
+    let collapseA = -1;
+    let collapseB = -1;
+
+    for (let i = 0; i < indices.length; i += 3) {
+      for (let j = 0; j < 3; j++) {
+        const a = indices[i + j] as number;
+        const b = indices[i + (j + 1) % 3] as number;
+        const dx = posAttr.getX(a) - posAttr.getX(b);
+        const dy = posAttr.getY(a) - posAttr.getY(b);
+        const dz = posAttr.getZ(a) - posAttr.getZ(b);
+        const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (len < minLen) {
+          minLen = len;
+          collapseA = a;
+          collapseB = b;
+        }
+      }
+    }
+
+    if (collapseA === -1) break;
+
+    // Collapse B into A (average position)
+    const ax = (posAttr.getX(collapseA) + posAttr.getX(collapseB)) / 2;
+    const ay = (posAttr.getY(collapseA) + posAttr.getY(collapseB)) / 2;
+    const az = (posAttr.getZ(collapseA) + posAttr.getZ(collapseB)) / 2;
+    posAttr.setXYZ(collapseA, ax, ay, az);
+    posAttr.needsUpdate = true;
+
+    // Replace B with A in index buffer
+    for (let i = 0; i < indices.length; i++) {
+      if (indices[i] === collapseB) indices[i] = collapseA;
+    }
+
+    // Remove degenerate triangles
+    const newIndices: number[] = [];
+    for (let i = 0; i < indices.length; i += 3) {
+      if (indices[i] !== indices[i + 1] && indices[i + 1] !== indices[i + 2] && indices[i] !== indices[i + 2]) {
+        newIndices.push(indices[i], indices[i + 1], indices[i + 2]);
+      }
+    }
+    indices.length = 0;
+    indices.push(...newIndices);
+  }
+
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+  setStatus(`Decimated: ${indices.length / 3} faces remaining`);
+}
+
+// ═══════════════════════════════════════════════
+// JOIN SELECTED OBJECTS
+// ═══════════════════════════════════════════════
+async function joinSelectedObjects() {
+  const ids = Array.from(state.selectedObjects);
+  if (ids.length < 2) { setStatus('Select 2+ objects to join'); return; }
+
+  pushUndo();
+  const targetObj = state.threeObjects.get(ids[0]) as THREE.Mesh;
+  if (!targetObj?.geometry) return;
+
+  targetObj.updateMatrixWorld();
+  const targetGeo = targetObj.geometry.clone();
+  targetGeo.applyMatrix4(targetObj.matrixWorld);
+  const targetPosAttr = targetGeo.getAttribute('position') as THREE.BufferAttribute;
+  const targetIndex = targetGeo.getIndex()!;
+  let offset = targetPosAttr.count;
+
+  const allPositions = Array.from(targetPosAttr.array);
+  const allIndices = Array.from(targetIndex.array);
+
+  // Merge other objects
+  for (let i = 1; i < ids.length; i++) {
+    const obj = state.threeObjects.get(ids[i]) as THREE.Mesh;
+    if (!obj?.geometry) continue;
+    obj.updateMatrixWorld();
+    const geo = obj.geometry.clone();
+    geo.applyMatrix4(obj.matrixWorld);
+    const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
+    const idxAttr = geo.getIndex();
+    if (!idxAttr) continue;
+
+    for (let j = 0; j < posAttr.count; j++) {
+      allPositions.push(posAttr.getX(j), posAttr.getY(j), posAttr.getZ(j));
+    }
+    const indices = idxAttr.array;
+    for (let j = 0; j < indices.length; j++) {
+      allIndices.push((indices[j] as number) + offset);
+    }
+    offset += posAttr.count;
+
+    // Remove merged object
+    scene.remove(obj);
+    threeObjectsInverse.delete(obj);
+    state.threeObjects.delete(ids[i]);
+    state.objects.delete(ids[i]);
+    try { await deleteObject(ids[i]); } catch {}
+  }
+
+  // Reset target transform and apply merged geometry
+  targetObj.position.set(0, 0, 0);
+  targetObj.quaternion.identity();
+  targetObj.scale.set(1, 1, 1);
+  targetGeo.setAttribute('position', new THREE.Float32BufferAttribute(allPositions, 3));
+  targetGeo.setIndex(allIndices);
+  targetGeo.computeVertexNormals();
+  targetGeo.computeBoundingSphere();
+  targetObj.geometry.dispose();
+  targetObj.geometry = targetGeo;
+
+  const objData = state.objects.get(ids[0]);
+  if (objData) {
+    objData.position = [0, 0, 0];
+    objData.rotation = [0, 0, 0, 1];
+    objData.scale = [1, 1, 1];
+  }
+
+  selectObject(ids[0]);
+  setStatus(`Joined ${ids.length} objects`);
+}
+
+// ═══════════════════════════════════════════════
+// CONTEXT MENU ACTIONS
+// ═══════════════════════════════════════════════
+document.getElementById('ctx-set-origin')?.addEventListener('click', () => {
+  if (state.selectedObjects.size !== 1) return;
+  const id = Array.from(state.selectedObjects)[0];
+  const threeObj = state.threeObjects.get(id);
+  if (!threeObj || !(threeObj instanceof THREE.Mesh)) return;
+  pushUndo();
+  // Move geometry so center is at origin
+  const geo = threeObj.geometry;
+  geo.computeBoundingBox();
+  const center = new THREE.Vector3();
+  geo.boundingBox!.getCenter(center);
+  const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
+  for (let i = 0; i < posAttr.count; i++) {
+    posAttr.setXYZ(i, posAttr.getX(i) - center.x, posAttr.getY(i) - center.y, posAttr.getZ(i) - center.z);
+  }
+  posAttr.needsUpdate = true;
+  threeObj.position.add(center);
+  const objData = state.objects.get(id);
+  if (objData) objData.position = [threeObj.position.x, threeObj.position.y, threeObj.position.z];
+  geo.computeBoundingSphere();
+  updateProperties();
+  document.getElementById('context-menu')?.classList.add('hidden');
+  setStatus('Origin set to geometry center');
+});
+
+document.getElementById('ctx-join')?.addEventListener('click', async () => {
+  await joinSelectedObjects();
+  document.getElementById('context-menu')?.classList.add('hidden');
+});
+
+document.getElementById('ctx-duplicate')?.addEventListener('click', async () => {
+  await duplicateObject();
+  document.getElementById('context-menu')?.classList.add('hidden');
+});
+
+// ═══════════════════════════════════════════════
+// HOOK UP ALL EXISTING BUTTON HANDLERS
+// ═══════════════════════════════════════════════
+// Weld button
+document.getElementById('btn-weld')?.addEventListener('click', () => weldSelected(0.001));
+// Decimate button
+document.getElementById('btn-decimate')?.addEventListener('click', () => decimateSelected(0.5));
+// Join button
+document.getElementById('btn-join')?.addEventListener('click', () => joinSelectedObjects());
