@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src-tauri/icons/icon.png" alt="Lili Modeler" width="180"/>
+<img width="1408" height="768" alt="image" src="https://github.com/user-attachments/assets/3f7480f1-00f7-4603-afea-8de125310377" />
 
 # Lili Modeler
 
